@@ -51,6 +51,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let backup_state = state.clone();
 
         tokio::task::spawn(async move {
+            let now1 = std::time::Instant::now();
+            println!("{}: {:?}", now1.elapsed().as_millis(), stream);
             if let Err(err) = Http::new()
                 .serve_connection(stream, service_fn(move |req| router(req, state.clone())))
                 .await
@@ -73,6 +75,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     println!("Could not write stats: [{}]", e)
                 }
             }
+            let now2 = std::time::Instant::now();
+            println!("now2 - now1: {:?}", now2 - now1);
         });
     }
 }
@@ -98,7 +102,9 @@ async fn router(req: Request<Body>, state: Arc<State>) -> Result<Response<Body>>
                 true => s.insert_str(0, "public"),
                 _ => return Ok(not_found()),
             }
+
             simple_file_send(s.as_str()).await
+            
         }
         _ => Ok(not_found()),
     }
@@ -142,11 +148,14 @@ async fn simple_file_send(filename: &str) -> Result<Response<Body>> {
 }
 
 async fn return_index(state: Arc<State>) -> Result<Response<Body>> {
+    let now1 = std::time::Instant::now();
     if let Ok(contents) = fs::read_to_string("public/index.html") {
         let contents = contents.replace("{{visitors}}", format!("{:?}", state.visitors).as_str());
         let contents = contents.replace("{{likes}}", format!("{:?}", state.likes).as_str());
         let body = contents.into();
         return Ok(Response::new(body));
     }
+    let now2 = std::time::Instant::now();
+    println!("now2 - now1: {:?}", now2 - now1);
     Ok(not_found())
 }
